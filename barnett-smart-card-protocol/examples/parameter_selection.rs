@@ -3,10 +3,10 @@
 //! - the prover performs m*N exponentiations
 //! - the proof is approximately 6m*|G|+4n*|Z| where |G| is the size of a EC point and |Z| is the size of a scalar
 //! (note that this is because we are not using the FFT-like improvement suggested in the paper)
-//! 
+//!
 //! Analysis: increasing m will always increase the prover time. Assuming |G| ≈≈ 2*|Z|, proof size is approx 12m+4n and will
 //! be minimised when m ≈≈ n/3.
-//! 
+//!
 //! Run the example `cargo run --example parameter_selection --release` and notice how proof size hits a minimum at m=10, n=30
 
 use anyhow::anyhow;
@@ -28,7 +28,7 @@ type Scalar = ark_bls12_377::Fr;
 // Instantiate concrete type for our card protocol
 type CardProtocol<'a> = discrete_log_cards::DLCards<'a, Curve>;
 
-const NUMBER_OF_CARDS: usize = 300;
+const NUMBER_OF_CARDS: usize = 60;
 
 fn main() -> anyhow::Result<()> {
     let mut rng = thread_rng();
@@ -38,8 +38,8 @@ fn main() -> anyhow::Result<()> {
     let blinding_factors: Vec<Scalar> = sample_vector(&mut rng, NUMBER_OF_CARDS);
     let permutation = Permutation::new(&mut rng, NUMBER_OF_CARDS);
 
-    let m_values: Vec<usize> = vec![2, 6, 10, 12, 30];
-    let n_values: Vec<usize> = vec![150, 50, 30, 25, 10];
+    let m_values: Vec<usize> = vec![2, 3, 4, 5, 6, 10, 12, 15, 20, 30];
+    let n_values: Vec<usize> = vec![30, 20, 15, 12, 10, 6, 5, 4, 3, 2];
 
     for (&m, &n) in m_values.iter().zip(n_values.iter()) {
         benchmark_parameters(

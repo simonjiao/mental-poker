@@ -13,12 +13,12 @@ A series of posts explaining the protocol and our approach to implementing it ar
 
 This library is developed as part of the collaboration between Geometry and Matchbox, and is designated as Geometry - MatchBox Proof 1. 
 
-## Running the example
+## Running the murder game example
 
 An example showing how to encode, hide, shuffle and distribute cards is provided under [`mental-poker/barnett-smart-card-protocol/examples/round.rs`](https://github.com/geometryresearch/mental-poker/blob/main/barnett-smart-card-protocol/examples/round.rs). Run the example by running:
 
 ```
-cargo run --example round
+cargo run --example murder
 ```
 
 ## License
