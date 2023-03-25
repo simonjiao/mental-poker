@@ -1,15 +1,14 @@
-use barnett_smart_card_protocol::discrete_log_cards;
-use barnett_smart_card_protocol::BarnettSmartProtocol;
+use barnett_smart_card_protocol::{discrete_log_cards, BarnettSmartProtocol};
 
 use anyhow;
 use ark_ff::{to_bytes, UniformRand};
 use ark_std::{rand::Rng, One};
-use proof_essentials::utils::permutation::Permutation;
-use proof_essentials::utils::rand::sample_vector;
-use proof_essentials::zkp::proofs::{chaum_pedersen_dl_equality, schnorr_identification};
+use proof_essentials::{
+    utils::{permutation::Permutation, rand::sample_vector},
+    zkp::proofs::{chaum_pedersen_dl_equality, schnorr_identification},
+};
 use rand::thread_rng;
-use std::collections::HashMap;
-use std::iter::Iterator;
+use std::{collections::HashMap, iter::Iterator};
 use thiserror::Error;
 
 // Choose elliptic curve setting

@@ -1,5 +1,6 @@
 [workspace]
 
 members = [
-    "barnett-smart-card-protocol"
+    "barnett-smart-card-protocol",
+    "examples"
 ]

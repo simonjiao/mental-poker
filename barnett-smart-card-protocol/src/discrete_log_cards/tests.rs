@@ -1,14 +1,13 @@
 #[cfg(test)]
 mod test {
-    use crate::discrete_log_cards;
-    use crate::error::CardProtocolError;
-    use crate::BarnettSmartProtocol;
+    use crate::{discrete_log_cards, error::CardProtocolError, BarnettSmartProtocol};
 
     use ark_ff::UniformRand;
     use ark_std::{rand::Rng, Zero};
-    use proof_essentials::error::CryptoError;
-    use proof_essentials::utils::permutation::Permutation;
-    use proof_essentials::utils::rand::sample_vector;
+    use proof_essentials::{
+        error::CryptoError,
+        utils::{permutation::Permutation, rand::sample_vector},
+    };
     use rand::thread_rng;
     use std::iter::Iterator;
 

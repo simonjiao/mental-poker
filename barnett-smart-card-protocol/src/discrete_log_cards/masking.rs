@@ -1,6 +1,4 @@
-use crate::discrete_log_cards::Card;
-use crate::error::CardProtocolError;
-use crate::Mask;
+use crate::{discrete_log_cards::Card, error::CardProtocolError, Mask};
 
 use ark_ec::ProjectiveCurve;
 use proof_essentials::homomorphic_encryption::{
@@ -21,13 +19,11 @@ impl<C: ProjectiveCurve> Mask<C::ScalarField, ElGamal<C>> for Card<C> {
 
 #[cfg(test)]
 mod test {
-    use crate::discrete_log_cards;
-    use crate::BarnettSmartProtocol;
+    use crate::{discrete_log_cards, BarnettSmartProtocol};
 
     use ark_ff::UniformRand;
     use ark_std::{rand::Rng, Zero};
-    use proof_essentials::error::CryptoError;
-    use proof_essentials::zkp::proofs::chaum_pedersen_dl_equality;
+    use proof_essentials::{error::CryptoError, zkp::proofs::chaum_pedersen_dl_equality};
     use rand::thread_rng;
 
     // Choose elliptic curve setting

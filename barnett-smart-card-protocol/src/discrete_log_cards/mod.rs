@@ -1,5 +1,4 @@
-use super::BarnettSmartProtocol;
-use super::{Mask, Remask, Reveal};
+use super::{BarnettSmartProtocol, Mask, Remask, Reveal};
 
 use crate::error::CardProtocolError;
 
@@ -7,20 +6,18 @@ use anyhow::Result;
 use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ff::{to_bytes, One, PrimeField, ToBytes};
 use ark_marlin::rng::FiatShamirRng;
-use ark_std::rand::Rng;
-use ark_std::Zero;
+use ark_std::{rand::Rng, Zero};
 use blake2::Blake2s;
-use proof_essentials::error::CryptoError;
-use proof_essentials::homomorphic_encryption::{
-    el_gamal, el_gamal::ElGamal, HomomorphicEncryptionScheme,
-};
-use proof_essentials::utils::permutation::Permutation;
-use proof_essentials::vector_commitment::pedersen::PedersenCommitment;
-use proof_essentials::vector_commitment::{pedersen, HomomorphicCommitmentScheme};
-use proof_essentials::zkp::{
-    arguments::shuffle,
-    proofs::{chaum_pedersen_dl_equality, schnorr_identification},
-    ArgumentOfKnowledge,
+use proof_essentials::{
+    error::CryptoError,
+    homomorphic_encryption::{el_gamal, el_gamal::ElGamal, HomomorphicEncryptionScheme},
+    utils::permutation::Permutation,
+    vector_commitment::{pedersen, pedersen::PedersenCommitment, HomomorphicCommitmentScheme},
+    zkp::{
+        arguments::shuffle,
+        proofs::{chaum_pedersen_dl_equality, schnorr_identification},
+        ArgumentOfKnowledge,
+    },
 };
 use std::marker::PhantomData;
 
@@ -85,12 +82,12 @@ const SHUFFLE_RNG_SEED: &'static [u8] = b"Shuffle Proof";
 
 impl<'a, C: ProjectiveCurve> BarnettSmartProtocol for DLCards<'a, C> {
     type Scalar = C::ScalarField;
-    type Enc = ElGamal<C>;
-    type Comm = PedersenCommitment<C>;
     type Parameters = Parameters<C>;
     type PlayerPublicKey = PublicKey<C>;
     type PlayerSecretKey = PlayerSecretKey<C>;
     type AggregatePublicKey = PublicKey<C>;
+    type Enc = ElGamal<C>;
+    type Comm = PedersenCommitment<C>;
 
     type Card = Card<C>;
     type MaskedCard = MaskedCard<C>;

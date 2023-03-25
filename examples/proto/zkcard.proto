@@ -1,0 +1,17 @@
+syntax = "proto3";
+package zkcard;
+
+service Greeter {
+  // Our Echo rpc accepts EchoRequests and returns EchoReplies
+  rpc Echo (EchoRequest) returns (EchoReply);
+}
+
+message EchoRequest {
+  // Request message contains the sender's name
+  string name = 1;
+}
+
+message EchoReply {
+  // Reply message contains the server's identity string
+  string message = 1;
+}
