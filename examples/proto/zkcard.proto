@@ -37,11 +37,13 @@ service CardGame {
   rpc DealCards(DealRequest) returns (DealReply) {}
 
   // Peek cards
+  // Request other players to reveal the token owned by him/herself
   rpc PeekCards(PeekRequest) returns (PeekReply) {}
 
   // Open cards
-  // Player submit the reveal token of his/her to other players
-  rpc OpenCards(OpenCardsRequest) return (OpenCardsReply) {}
+  // Request the owner to submit the reveal token of his/her to other players
+  // Request also sent to other players
+  rpc OpenCards(OpenCardsRequest) returns (OpenCardsReply) {}
 }
 
 message GameUuid {
@@ -138,5 +140,12 @@ message PeekReply {
 }
 
 message OpenCardsRequest {
+  GameUuid id = 1;
+  repeated Player players = 2;
+  repeated uint32 masked_cards = 3;
+}
 
+message OpenCardsReply {
+  GameUuid id = 1;
+  repeated RevealedTokenInfo tokens = 2;
 }
