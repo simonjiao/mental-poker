@@ -15,3 +15,128 @@ message EchoReply {
   // Reply message contains the server's identity string
   string message = 1;
 }
+
+service CardGame {
+  // A simple rpc for zkCardGame utilizing barnett-smart-card-protocol
+
+  // Create a new card game
+  rpc Instantiate(GameConfig) returns (GameInitInfo) {}
+
+  // Join a currently existed and valid game
+  rpc RegisterPlayers(RegisterRequest) returns (GameInitInfo) {}
+
+  // Get the Shuffle info.
+  // Each player call this rpc repeatedly and wait for it's turn
+  rpc NextToShuffle(GameUuid) returns (GameDeckInfo) {}
+
+  // Each player verifies shuffled cards and shuffles cards locally,
+  // then submits shuffled cards for other players to do the same
+  rpc SubmitShuffledCards(ShuffleRequest) returns (GameDeckInfo) {}
+
+  // Player requests more masked cards
+  rpc DealCards(DealRequest) returns (DealReply) {}
+
+  // Peek cards
+  rpc PeekCards(PeekRequest) returns (PeekReply) {}
+
+  // Open cards
+  // Player submit the reveal token of his/her to other players
+  rpc OpenCards(OpenCardsRequest) return (OpenCardsReply) {}
+}
+
+message GameUuid {
+  string game_id = 1;
+}
+
+message GameConfig {
+  uint32 m = 1;
+  uint32 n = 2;
+  uint32 min_player_num = 3;
+  uint32 max_player_num = 4;
+  // time to start or destroy the game
+  uint64 must_ready_before = 5;
+}
+
+message GameInitInfo {
+  GameUuid game_id = 1;
+  CardPrameters parameters = 2;
+  Map<Card, ClassicPlayingCard> cards = 3;
+}
+
+message Player {
+  string name = 1;
+  PublicKey pub_key = 2;
+  ProofKeyOwnerShip proof_of_key = 3;
+}
+
+message RegisterRequest {
+  repeated Player players = 1;
+  string game_id = 2;
+}
+
+message InitDeckInfo {
+  AggregatePublicKey joint_pk = 1;
+  repeated Player players = 2;
+  repeated MaskedCard cards = 3;
+  repeated RemaskingProof proofs = 4;
+}
+
+message ShuffleInfo {
+  Player player = 1;
+  repeated MaskedCard shuffled_cards = 2;
+  repeated ZKProofShuffle shuffle_proofs = 3;
+}
+
+message GameDeckInfo {
+  string game_id = 1;
+  InitDeckInfo initial = 2;
+  // if this field is valid from 0..players.len() (exclusive)
+  // when it's equal with players.len(), shuffling has done,
+  // and the last shuffled cards is for the final deck.
+  uint32 next_player_to_shuffle = 3;
+  repeated ShuffleInfo shuffled = 4;
+}
+
+message ShuffleRequest {
+  string game_id = 1;
+  ShuffleInfo shuffled = 2;
+}
+
+message DealRequest {
+  GameUuid id = 1;
+  Player player = 2;
+  uint32 cards_num = 3;
+  uint32 last_seen_card_index = 4;
+  uint32 round = 5;
+}
+
+message DealReply {
+  GameUuid id = 1;
+  Player player = 2;
+  uint32 min_card_index = 3;
+  uint32 max_card_index = 4;
+  uint32 round = 5;
+}
+
+message PeekRequest {
+  GameUuid id = 1;
+  Player player = 2;
+  repeated uint32 cards = 4;
+  uint32 round = 5;
+}
+
+message RevealedTokenInfo {
+  uint32 card_index = 1;
+  RevealToken token = 2;
+  RevealProof proof = 3;
+  PublicKey pub_key = 4;
+}
+
+message PeekReply {
+  GameUuid id = 1;
+  repeated RevealedTokenInfo tokens = 2;
+}
+
+message OpenCardsRequest {
+
+}
