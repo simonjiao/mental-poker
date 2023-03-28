@@ -1,3 +1,5 @@
+mod wasm;
+
 use zkcard::{greeter_client::GreeterClient, EchoRequest};
 
 pub mod zkcard {

@@ -4,8 +4,19 @@ use anyhow;
 use ark_ff::{to_bytes, UniformRand};
 use ark_std::{rand::Rng, One};
 use proof_essentials::{
+    homomorphic_encryption::{
+        el_gamal::{self, ElGamal},
+        HomomorphicEncryptionScheme,
+    },
     utils::{permutation::Permutation, rand::sample_vector},
-    zkp::proofs::{chaum_pedersen_dl_equality, schnorr_identification},
+    vector_commitment::{
+        pedersen::{self, PedersenCommitment},
+        HomomorphicCommitmentScheme,
+    },
+    zkp::{
+        arguments::shuffle,
+        proofs::{chaum_pedersen_dl_equality, schnorr_identification},
+    },
 };
 use rand::thread_rng;
 use std::{collections::HashMap, iter::Iterator};
@@ -14,12 +25,15 @@ use thiserror::Error;
 // Choose elliptic curve setting
 type Curve = starknet_curve::Projective;
 type Scalar = starknet_curve::Fr;
+type Enc = ElGamal<Curve>;
+type Comm = PedersenCommitment<Curve>;
 
 // Instantiate concrete type for our card protocol
 type CardProtocol<'a> = discrete_log_cards::DLCards<'a, Curve>;
 type CardParameters = discrete_log_cards::Parameters<Curve>;
 type PublicKey = discrete_log_cards::PublicKey<Curve>;
 type SecretKey = discrete_log_cards::PlayerSecretKey<Curve>;
+type AggregatePublicKey = discrete_log_cards::PublicKey<Curve>;
 
 type Card = discrete_log_cards::Card<Curve>;
 type MaskedCard = discrete_log_cards::MaskedCard<Curve>;
@@ -28,6 +42,8 @@ type RevealToken = discrete_log_cards::RevealToken<Curve>;
 type ProofKeyOwnership = schnorr_identification::proof::Proof<Curve>;
 type RemaskingProof = chaum_pedersen_dl_equality::proof::Proof<Curve>;
 type RevealProof = chaum_pedersen_dl_equality::proof::Proof<Curve>;
+
+type ZKProofShuffle = shuffle::proof::Proof<Scalar, Enc, Comm>;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GameErrors {
@@ -136,6 +152,18 @@ struct Player {
     opened_cards: Vec<Option<ClassicPlayingCard>>,
 }
 
+struct Surrogate {
+    name: Vec<u8>,
+    pk: PublicKey,
+    proof_key: ProofKeyOwnership,
+}
+
+impl Surrogate {
+    pub fn verify(&self, pp: &CardParameters) -> bool {
+        CardProtocol::verify_key_ownership(pp, &self.pk, &self.name, &self.proof_key).is_ok()
+    }
+}
+
 impl Player {
     pub fn new<R: Rng>(rng: &mut R, pp: &CardParameters, name: &Vec<u8>) -> anyhow::Result<Self> {
         let (pk, sk) = CardProtocol::player_keygen(rng, pp)?;
@@ -148,6 +176,18 @@ impl Player {
             cards: vec![],
             opened_cards: vec![],
         })
+    }
+
+    pub fn surrogate(&self, pp: &CardParameters) -> Surrogate {
+        let rng = &mut thread_rng();
+        let proof_key =
+            CardProtocol::prove_key_ownership(rng, pp, &self.pk, &self.sk, &self.name).unwrap();
+
+        Surrogate {
+            name: name.clone(),
+            pk,
+            proof_key,
+        }
     }
 
     pub fn receive_card(&mut self, card: MaskedCard) {
@@ -224,14 +264,79 @@ fn encode_cards<R: Rng>(rng: &mut R, num_of_cards: usize) -> HashMap<Card, Class
     map
 }
 
+mod CardGame {
+    use crate::{
+        AggregatePublicKey, Card, CardParameters, CardProtocol, ClassicPlayingCard, MaskedCard,
+        PublicKey, RemaskingProof, RevealProof, RevealToken, Surrogate, ZKProofShuffle,
+    };
+    use barnett_smart_card_protocol::BarnettSmartProtocol;
+    use proof_essentials::zkp::arguments::shuffle;
+    use rand::thread_rng;
+    use std::collections::HashMap;
+
+    pub struct GameInitInfo {
+        pub players: Vec<Surrogate>,
+        pub parameters: CardParameters,
+        pub initial_cards: HashMap<Card, ClassicPlayingCard /*serialize raw data*/>,
+        pub remasked_decks: HashMap<MaskedCard, RemaskingProof>,
+        pub shuffled_decks: Vec<(Vec<MaskedCard>, u32 /*player index*/, ZKProofShuffle)>,
+    }
+
+    pub struct CardStatus {
+        // index in the final shuffled decks
+        index: u32,
+        // deal to player at which round
+        owner: Option<(Surrogate, u64)>,
+        // revealed token list
+        revealed: Vec<(RevealToken, RevealProof, PublicKey, u64)>,
+    }
+
+    pub struct GameInstance {
+        pub basic_info: GameInitInfo,
+        pub joint_pk: AggregatePublicKey,
+        pub next_card: u32,
+        pub next_round: u32,
+        pub cards: Vec<CardStatus>,
+    }
+
+    #[derive(Debug, Default)]
+    pub struct GameConfig {
+        pub m: u32,
+        pub n: u32,
+        pub min_players_num: u32,
+        pub max_players_num: u32,
+        pub must_start_before: u64,
+    }
+
+    pub fn instantiate(config: GameConfig) -> GameInitInfo {
+        let rng = &mut thread_rng();
+        let m = config.m as usize;
+        let n = config.n as usize;
+        let num_of_cards = m * n;
+        let parameters = CardProtocol::setup(rng, m, n).unwrap();
+        let card_mapping = encode_cards(rng, num_of_cards).unwrap();
+
+        GameInitInfo {
+            parameters,
+            cards: card_mapping,
+        }
+    }
+}
+
 fn main() -> anyhow::Result<()> {
-    let m = 2;
-    let n = 26;
-    let num_of_cards = m * n;
+    let config = CardGame::GameConfig {
+        m: 2,
+        n: 26,
+        ..Default::default()
+    };
+    let m = config.m;
+    let n = config.n;
     let rng = &mut thread_rng();
 
-    let parameters = CardProtocol::setup(rng, m, n)?;
-    let card_mapping = encode_cards(rng, num_of_cards);
+    let CardGame::GameInitInfo {
+        parameters,
+        cards: card_mapping,
+    } = CardGame::instantiate(config);
 
     let mut andrija = Player::new(rng, &parameters, &to_bytes![b"Andrija"].unwrap())?;
     let mut kobi = Player::new(rng, &parameters, &to_bytes![b"Kobi"].unwrap())?;

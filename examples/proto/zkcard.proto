@@ -44,6 +44,9 @@ service CardGame {
   // Request the owner to submit the reveal token of his/her to other players
   // Request also sent to other players
   rpc OpenCards(OpenCardsRequest) returns (OpenCardsReply) {}
+
+  // Fold cards and quit the game
+  rpc fold(FoldRequest) returns (FoldReply) {}
 }
 
 message GameUuid {
@@ -148,4 +151,13 @@ message OpenCardsRequest {
 message OpenCardsReply {
   GameUuid id = 1;
   repeated RevealedTokenInfo tokens = 2;
+}
+
+message FoldRequest {
+  GameUuid id = 1;
+  repeated RevealedTokenInfo tokens = 2;
+}
+
+message FoldReply {
+  GameUuid id = 1;
 }

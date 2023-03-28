@@ -16,6 +16,7 @@ path = "src/service/client.rs"
 tonic = "0.8"
 prost = "0.11"
 tokio = { version = "1", features = [ "macros", "rt-multi-thread" ] }
+barnett-card = { path = "../barnett-smart-card-protocol", package = "barnett-smart-card-protocol" }
 
 [build-dependencies]
 tonic-build = "0.8"
