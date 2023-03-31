@@ -274,6 +274,7 @@ mod CardGame {
     use rand::thread_rng;
     use std::collections::HashMap;
 
+    #[derive(Default, Debug)]
     pub struct GameInitInfo {
         pub players: Vec<Surrogate>,
         pub parameters: CardParameters,
@@ -314,11 +315,12 @@ mod CardGame {
         let n = config.n as usize;
         let num_of_cards = m * n;
         let parameters = CardProtocol::setup(rng, m, n).unwrap();
-        let card_mapping = encode_cards(rng, num_of_cards).unwrap();
+        let initial_cards = encode_cards(rng, num_of_cards).unwrap();
 
         GameInitInfo {
             parameters,
-            cards: card_mapping,
+            initial_cards,
+            ..Default::default()
         }
     }
 }
