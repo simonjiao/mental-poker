@@ -1,25 +1,22 @@
 use anyhow::Ok;
 use ark_ec::short_weierstrass_jacobian::GroupAffine;
 use ark_ff::Fp256;
-use barnett_smart_card_protocol::discrete_log_cards;
-use barnett_smart_card_protocol::BarnettSmartProtocol;
+use barnett_smart_card_protocol::{discrete_log_cards, BarnettSmartProtocol};
 
-use anyhow;
 use ark_ff::{to_bytes, UniformRand};
 use ark_std::{rand::Rng, One};
-use proof_essentials::homomorphic_encryption::el_gamal::ElGamal;
-use proof_essentials::utils::permutation::Permutation;
-use proof_essentials::utils::rand::sample_vector;
-use proof_essentials::vector_commitment::pedersen::PedersenCommitment;
-use proof_essentials::zkp::arguments::shuffle::proof::Proof;
-use proof_essentials::zkp::proofs::{chaum_pedersen_dl_equality, schnorr_identification};
-use rand::seq::SliceRandom;
-use rand::thread_rng;
-use starknet_curve::FrParameters;
-use starknet_curve::StarkwareParameters;
-use std::cmp;
-use std::collections::HashMap;
-use std::iter::Iterator;
+use proof_essentials::{
+    homomorphic_encryption::el_gamal::ElGamal,
+    utils::{permutation::Permutation, rand::sample_vector},
+    vector_commitment::pedersen::PedersenCommitment,
+    zkp::{
+        arguments::shuffle::proof::Proof,
+        proofs::{chaum_pedersen_dl_equality, schnorr_identification},
+    },
+};
+use rand::{seq::SliceRandom, thread_rng};
+use starknet_curve::{FrParameters, StarkwareParameters};
+use std::{cmp, collections::HashMap, iter::Iterator};
 use thiserror::Error;
 
 // Choose elliptic curve setting
@@ -128,7 +125,7 @@ impl Player {
         let own_reveal_token = self.compute_reveal_token(rng, parameters, card)?;
         reveal_tokens.push(own_reveal_token);
 
-        let unmasked_card = CardProtocol::unmask(&parameters, &reveal_tokens, card)?;
+        let unmasked_card = CardProtocol::unmask(parameters, &reveal_tokens, card)?;
         let opened_card = card_mappings.get(&unmasked_card);
         let opened_card = opened_card.ok_or(GameErrors::InvalidCard)?;
 
@@ -156,7 +153,7 @@ impl Player {
         card: &MaskedCard,
     ) -> anyhow::Result<(RevealToken, RevealProof, PublicKey)> {
         let (reveal_token, reveal_proof) =
-            CardProtocol::compute_reveal_token(rng, &pp, &self.sk, &self.pk, card)?;
+            CardProtocol::compute_reveal_token(rng, pp, &self.sk, &self.pk, card)?;
 
         Ok((reveal_token, reveal_proof, self.pk))
     }
@@ -169,7 +166,7 @@ impl Player {
         let mut reveal_tokens = HashMap::new();
         for card in self.cards.clone() {
             let (reveal_token, reveal_proof) =
-                CardProtocol::compute_reveal_token(rng, &pp, &self.sk, &self.pk, &card)?;
+                CardProtocol::compute_reveal_token(rng, pp, &self.sk, &self.pk, &card)?;
             reveal_tokens.insert(card, (reveal_token, reveal_proof, self.pk));
         }
         Ok(reveal_tokens)
@@ -185,7 +182,7 @@ impl Player {
         for card in deck {
             if !self.cards.contains(card) {
                 let (reveal_token, reveal_proof) =
-                    CardProtocol::compute_reveal_token(rng, &pp, &self.sk, &self.pk, card)?;
+                    CardProtocol::compute_reveal_token(rng, pp, &self.sk, &self.pk, card)?;
                 reveal_tokens.insert(*card, (reveal_token, reveal_proof, self.pk));
             }
         }
@@ -219,10 +216,10 @@ pub fn open_cards(
 
     for card in cards {
         let reveal_tokens = collection.get(&card).ok_or(GameErrors::CardNotFound)?;
-        let unmasked_card = CardProtocol::unmask(&parameters, reveal_tokens, &card)?;
+        let unmasked_card = CardProtocol::unmask(parameters, reveal_tokens, &card)?;
         let opened_card = card_mappings.get(&unmasked_card);
         let opened_card = opened_card.ok_or(GameErrors::InvalidCard)?;
-        opened_cards.insert(card, opened_card.clone());
+        opened_cards.insert(card, *opened_card);
     }
     Ok(opened_cards)
 }
@@ -234,10 +231,10 @@ pub fn print_cards(
 ) {
     print!("{} ", name);
     for masked in cards {
-        let opened_card = mappings.get(&masked).unwrap();
+        let opened_card = mappings.get(masked).unwrap();
         print!(" {:?}", opened_card);
     }
-    println!("");
+    println!();
 }
 
 fn encode_cards<R: Rng>(
@@ -305,9 +302,9 @@ pub fn shuffle_chunks<R: Rng>(
 
     let (shuffled_deck, shuffle_proof) = CardProtocol::shuffle_and_remask(
         rng,
-        &pp,
-        &shared_key,
-        &deck,
+        pp,
+        shared_key,
+        deck,
         &masking_factors,
         &permutation,
     )?;
@@ -362,7 +359,7 @@ fn main() -> anyhow::Result<()> {
     // Also, each player should run this computation and verify offline so that all players agree on the initial deck.
     let deck_and_proofs: Vec<(MaskedCard, RemaskingProof)> = encoded_cards
         .iter()
-        .map(|card| CardProtocol::mask(rng, &parameters, &shared_key, &card, &Scalar::one()))
+        .map(|card| CardProtocol::mask(rng, &parameters, &shared_key, card, &Scalar::one()))
         .collect::<Result<Vec<_>, _>>()?;
 
     let deck = deck_and_proofs
@@ -461,7 +458,7 @@ fn main() -> anyhow::Result<()> {
     // DRAW LOTS --------------
     // Each player `drawLots()` to get a chunk of cards in a row.
     draw_cards(&mut andrija, &deck, chunk_size, 0);
-    draw_cards(&mut kobi, &deck, chunk_size, chunk_size * 1);
+    draw_cards(&mut kobi, &deck, chunk_size, chunk_size);
     draw_cards(&mut nico, &deck, chunk_size, chunk_size * 2);
     draw_cards(&mut tom, &deck, chunk_size, chunk_size * 3);
     draw_cards(&mut jay, &deck, chunk_size, chunk_size * 4);

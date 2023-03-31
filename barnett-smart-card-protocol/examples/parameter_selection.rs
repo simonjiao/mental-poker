@@ -13,11 +13,11 @@ use anyhow::anyhow;
 use ark_ec::ProjectiveCurve;
 use ark_ff::UniformRand;
 use ark_serialize::CanonicalSerialize;
-use barnett_smart_card_protocol::discrete_log_cards::MaskedCard;
-use barnett_smart_card_protocol::{discrete_log_cards, BarnettSmartProtocol};
+use barnett_smart_card_protocol::{
+    discrete_log_cards, discrete_log_cards::MaskedCard, BarnettSmartProtocol,
+};
 use byte_unit::Byte;
-use proof_essentials::utils::permutation::Permutation;
-use proof_essentials::utils::rand::sample_vector;
+use proof_essentials::utils::{permutation::Permutation, rand::sample_vector};
 use rand::{thread_rng, Rng};
 use std::time::Instant;
 

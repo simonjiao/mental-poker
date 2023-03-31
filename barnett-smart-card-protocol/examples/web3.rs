@@ -1,15 +1,13 @@
-use barnett_smart_card_protocol::discrete_log_cards;
-use barnett_smart_card_protocol::BarnettSmartProtocol;
+use barnett_smart_card_protocol::{discrete_log_cards, BarnettSmartProtocol};
 
-use anyhow;
 use ark_ff::{to_bytes, UniformRand};
 use ark_std::{rand::Rng, One};
-use proof_essentials::utils::permutation::Permutation;
-use proof_essentials::utils::rand::sample_vector;
-use proof_essentials::zkp::proofs::{chaum_pedersen_dl_equality, schnorr_identification};
+use proof_essentials::{
+    utils::{permutation::Permutation, rand::sample_vector},
+    zkp::proofs::{chaum_pedersen_dl_equality, schnorr_identification},
+};
 use rand::thread_rng;
-use std::collections::HashMap;
-use std::iter::Iterator;
+use std::{collections::HashMap, iter::Iterator};
 use thiserror::Error;
 
 // Choose elliptic curve setting
@@ -172,7 +170,7 @@ impl Player {
         let own_reveal_token = self.compute_reveal_token(rng, parameters, card)?;
         reveal_tokens.push(own_reveal_token);
 
-        let unmasked_card = CardProtocol::unmask(&parameters, reveal_tokens, card)?;
+        let unmasked_card = CardProtocol::unmask(parameters, reveal_tokens, card)?;
         let opened_card = card_mappings.get(&unmasked_card);
         let opened_card = opened_card.ok_or(GameErrors::InvalidCard)?;
 
@@ -187,7 +185,7 @@ impl Player {
         card: &MaskedCard,
     ) -> anyhow::Result<(RevealToken, RevealProof, PublicKey)> {
         let (reveal_token, reveal_proof) =
-            CardProtocol::compute_reveal_token(rng, &pp, &self.sk, &self.pk, card)?;
+            CardProtocol::compute_reveal_token(rng, pp, &self.sk, &self.pk, card)?;
 
         Ok((reveal_token, reveal_proof, self.pk))
     }
@@ -200,7 +198,7 @@ pub fn open_card(
     card_mappings: &HashMap<Card, ClassicPlayingCard>,
     card: &MaskedCard,
 ) -> Result<ClassicPlayingCard, anyhow::Error> {
-    let unmasked_card = CardProtocol::unmask(&parameters, reveal_tokens, card)?;
+    let unmasked_card = CardProtocol::unmask(parameters, reveal_tokens, card)?;
     let opened_card = card_mappings.get(&unmasked_card);
     let opened_card = opened_card.ok_or(GameErrors::InvalidCard)?;
 
@@ -255,7 +253,7 @@ fn main() -> anyhow::Result<()> {
     // Also, each player should run this computation and verify offline so that all players agree on the initial deck.
     let deck_and_proofs: Vec<(MaskedCard, RemaskingProof)> = card_mapping
         .keys()
-        .map(|card| CardProtocol::mask(rng, &parameters, &joint_pk, &card, &Scalar::one()))
+        .map(|card| CardProtocol::mask(rng, &parameters, &joint_pk, card, &Scalar::one()))
         .collect::<Result<Vec<_>, _>>()?;
 
     let deck = deck_and_proofs

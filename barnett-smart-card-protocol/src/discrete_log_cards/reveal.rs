@@ -1,6 +1,4 @@
-use crate::discrete_log_cards::RevealToken;
-use crate::error::CardProtocolError;
-use crate::Reveal;
+use crate::{discrete_log_cards::RevealToken, error::CardProtocolError, Reveal};
 
 use ark_ec::ProjectiveCurve;
 use ark_ff::One;
@@ -21,12 +19,10 @@ impl<C: ProjectiveCurve> Reveal<C::ScalarField, ElGamal<C>> for RevealToken<C> {
 
 #[cfg(test)]
 mod test {
-    use crate::discrete_log_cards;
-    use crate::BarnettSmartProtocol;
+    use crate::{discrete_log_cards, BarnettSmartProtocol};
 
     use ark_ff::UniformRand;
-    use proof_essentials::error::CryptoError;
-    use proof_essentials::zkp::proofs::chaum_pedersen_dl_equality;
+    use proof_essentials::{error::CryptoError, zkp::proofs::chaum_pedersen_dl_equality};
     use rand::thread_rng;
 
     // Choose elliptic curve setting
