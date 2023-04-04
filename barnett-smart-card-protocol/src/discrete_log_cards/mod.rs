@@ -21,6 +21,27 @@ use proof_essentials::{
 };
 use std::marker::PhantomData;
 
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use serde::{Deserialize, Serialize};
+
+pub fn ark_se<S, A: CanonicalSerialize>(a: &A, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let mut bytes = vec![];
+    a.serialize(&mut bytes).map_err(serde::ser::Error::custom)?;
+    s.serialize_bytes(&bytes)
+}
+
+pub fn ark_de<'de, D, A: CanonicalDeserialize>(data: D) -> Result<A, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let s: Vec<u8> = serde::de::Deserialize::deserialize(data)?;
+    let a = A::deserialize(s.as_slice());
+    a.map_err(serde::de::Error::custom)
+}
+
 // mod key_ownership;
 mod masking;
 mod remasking;
@@ -31,11 +52,15 @@ pub struct DLCards<'a, C: ProjectiveCurve> {
     _group: &'a PhantomData<C>,
 }
 
+#[derive(Serialize, Deserialize)]
 pub struct Parameters<C: ProjectiveCurve> {
     m: usize,
     n: usize,
+    #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
     enc_parameters: el_gamal::Parameters<C>,
+    #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
     commit_parameters: pedersen::CommitKey<C>,
+    #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
     generator: el_gamal::Generator<C>,
 }
 

@@ -19,6 +19,7 @@ proof-essentials = { git = "https://github.com/FindoraNetwork/proof-toolbox.git"
 rand = "0.8.4"
 starknet-curve = { git = "https://github.com/FindoraNetwork/proof-toolbox.git", branch = "findora" }
 thiserror = "1.0.30"
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 ark-bls12-377 = "0.3.0"
