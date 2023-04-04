@@ -178,18 +178,6 @@ impl Player {
         })
     }
 
-    pub fn surrogate(&self, pp: &CardParameters) -> Surrogate {
-        let rng = &mut thread_rng();
-        let proof_key =
-            CardProtocol::prove_key_ownership(rng, pp, &self.pk, &self.sk, &self.name).unwrap();
-
-        Surrogate {
-            name: name.clone(),
-            pk,
-            proof_key,
-        }
-    }
-
     pub fn receive_card(&mut self, card: MaskedCard) {
         self.cards.push(card);
         self.opened_cards.push(None);
