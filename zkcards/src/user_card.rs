@@ -1,6 +1,7 @@
 use crate::Card;
 use ark_ff::UniformRand;
 use ark_std::rand::Rng;
+use barnett::discrete_log_cards;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -93,9 +94,9 @@ impl std::fmt::Debug for ClassicPlayingCard {
 }
 
 pub(crate) fn encode_cards<R: Rng>(rng: &mut R, num_of_cards: usize) -> HashMap<Card, Vec<u8>> {
-    let mut map: HashMap<Card, Vec<u8>> = HashMap::new();
+    let mut map = HashMap::new();
     let plaintexts = (0..num_of_cards)
-        .map(|_| Card::rand(rng))
+        .map(|_| discrete_log_cards::Card::rand(rng).into())
         .collect::<Vec<_>>();
 
     let mut i = 0;
