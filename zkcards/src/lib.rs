@@ -128,12 +128,17 @@ impl From<ProofShuffle> for shuffle::proof::Proof<Scalar, Enc, Comm> {
         value.0
     }
 }
+impl<'a> From<&'a ProofShuffle> for &'a shuffle::proof::Proof<Scalar, Enc, Comm> {
+    fn from(value: &'a ProofShuffle) -> Self {
+        &value.0
+    }
+}
 
-//pub struct ProofMasking(chaum_pedersen_dl_equality::proof::Proof<Cure>);
+//pub struct ProofMasking(chaum_pedersen_dl_equality::proof::Proof<Curve>);
 #[derive(Clone, Copy, Eq, Hash, PartialEq, Debug, Deserialize, Serialize)]
 pub struct ProofRemasking(
     #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
-    chaum_pedersen_dl_equality::proof::Proof<Cure>,
+    chaum_pedersen_dl_equality::proof::Proof<Curve>,
 );
 impl From<chaum_pedersen_dl_equality::proof::Proof<Curve>> for ProofRemasking {
     fn from(value: chaum_pedersen_dl_equality::proof::Proof<Curve>) -> Self {

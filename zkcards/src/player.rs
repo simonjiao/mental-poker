@@ -5,7 +5,7 @@ use crate::{
 };
 use barnett::{
     discrete_log_cards::{ark_de, ark_se},
-    BarnettSmartProtocol, Mask,
+    BarnettSmartProtocol,
 };
 use proof_essentials::utils::{permutation::Permutation, rand::sample_vector};
 use rand::{thread_rng, Rng};
@@ -77,20 +77,26 @@ impl Player {
         joint_pk: &AggregatePublicKey,
         nums_of_cards: usize,
     ) -> anyhow::Result<(Vec<MaskedCard>, ProofShuffle), GameErrors> {
-        let &mut rng = thread_rng();
-        let permutation = Permutation::new(rng, nums_of_cards);
-        let masking_factors: Vec<Scalar> = sample_vector(rng, nums_of_cards);
+        let mut rng = thread_rng();
+        let permutation = Permutation::new(&mut rng, nums_of_cards);
+        let masking_factors: Vec<Scalar> = sample_vector(&mut rng, nums_of_cards);
 
+        let deck = deck.iter().map(|c| c.clone().into()).collect::<Vec<_>>();
         let (shuffled_deck, shuffle_proof) = CardProtocol::shuffle_and_remask(
-            rng,
+            &mut rng,
             parameters,
             joint_pk,
-            deck.into(),
+            &deck,
             &masking_factors,
             &permutation,
         )?;
 
-        Ok((shuffled_deck.into(), shuffle_proof.into()))
+        let shuffled_deck = shuffled_deck
+            .into_iter()
+            .map(|c| c.into())
+            .collect::<Vec<_>>();
+
+        Ok((shuffled_deck, shuffle_proof.into()))
     }
 
     pub fn verify_shuffle(
@@ -101,14 +107,22 @@ impl Player {
         shuffled_deck: &Vec<MaskedCard>,
         proof_shuffle: &ProofShuffle,
     ) -> anyhow::Result<(), GameErrors> {
+        let original_deck = original_deck
+            .iter()
+            .map(|e| e.clone().into())
+            .collect::<Vec<_>>();
+        let shuffled_deck = shuffled_deck
+            .iter()
+            .map(|e| e.clone().into())
+            .collect::<Vec<_>>();
         CardProtocol::verify_shuffle(
             &parameters,
             joint_pk,
-            original_deck.into(),
-            shuffled_deck.into(),
+            &original_deck,
+            &shuffled_deck,
             proof_shuffle.into(),
         )
-        .into()
+        .map_err(|e| GameErrors::CryptoError(e))
     }
 
     pub fn receive_card(&mut self, card: MaskedCard) {

@@ -1,3 +1,4 @@
+use barnett::discrete_log_cards::{ark_de, ark_se};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use zkcards::{
@@ -51,7 +52,7 @@ async fn main() -> anyhow::Result<()> {
 
                     if instance.as_ref().unwrap().ready_to_shuffle() {
                         instance
-                            .as_ref()
+                            .as_mut()
                             .unwrap()
                             .setup()
                             .expect("failed to setup a new game");
@@ -59,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
                         let deck = instance.as_ref().unwrap().initial_deck().unwrap();
                         let first_shuffle_player = {
                             let mut rng = thread_rng();
-                            let num = rng.gen();
+                            let num: u32 = rng.gen();
                             num % PLAYERS_NUM
                         };
                         for player in &player_txs {
@@ -91,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
 
                     // If the deck has been shuffled by all players
                     // Players can receive cards
-                    if instacne.is_all_shuffled() {
+                    if instance.is_all_shuffled() {
                         todo!()
                     }
                 }
@@ -115,10 +116,14 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    let new_player = |i, pp| async move {
+    let new_player = |i, pp: Vec<u8>| async move {
+        let param = serde_json::from_slice::<CardParameters>(pp.as_slice()).unwrap();
         let name = format!("player-{i}");
         let rng = &mut thread_rng();
-        Player::new(rng, pp, &name.as_bytes().to_vec()).unwrap()
+        (
+            Some(Player::new(rng, &param, &name.as_bytes().to_vec()).unwrap()),
+            Some(param),
+        )
     };
 
     for (i, mut rx) in player_rxs.into_iter().enumerate() {
@@ -131,11 +136,9 @@ async fn main() -> anyhow::Result<()> {
                 let msg = serde_json::from_slice::<S2COp>(msg.as_slice()).unwrap();
                 match msg {
                     S2COp::GameParam(pp) => {
-                        param =
-                            Some(serde_json::from_slice::<CardParameters>(pp.as_slice()).unwrap());
-                        player = Some(new_player(i, param.as_ref().unwrap()).await);
+                        (player, param) = new_player(i, pp).await;
 
-                        let msg = C2SOp::CheckIn(i as u32, player.surrogate());
+                        let msg = C2SOp::CheckIn(i as u32, player.as_ref().unwrap().surrogate());
                         let raw_msg = serde_json::to_vec(&msg).unwrap();
                         srv_tx.send(raw_msg).await.unwrap();
                     }
@@ -153,7 +156,7 @@ async fn main() -> anyhow::Result<()> {
                             }
                             ProofOrPk::JointPk(pk) => {
                                 assert!(joint_pk.is_none());
-                                jioint_pk = Some(pk);
+                                joint_pk = Some(pk);
                             }
                         }
 
@@ -162,10 +165,10 @@ async fn main() -> anyhow::Result<()> {
                                 .as_ref()
                                 .unwrap()
                                 .verify_shuffle(
-                                    pp,
+                                    param.as_ref().unwrap(),
                                     joint_pk.as_ref().unwrap(),
                                     original.as_ref().unwrap(),
-                                    &card,
+                                    &deck,
                                     &proof,
                                 )
                                 .unwrap();
@@ -173,13 +176,13 @@ async fn main() -> anyhow::Result<()> {
 
                         // If I am the chosen one, do the shuffle.
                         // Then send the result back.
-                        if index == i {
+                        if index == i as u32 {
                             let card_nums = param.as_ref().unwrap().card_nums();
                             let (deck, proof) = player
                                 .as_ref()
                                 .unwrap()
                                 .shuffle(
-                                    pp,
+                                    param.as_ref().unwrap(),
                                     &deck,
                                     joint_pk.as_ref().unwrap(),
                                     card_nums.0 * card_nums.1,
@@ -224,10 +227,12 @@ enum C2SOp {
     OpenCard(RevealToken),
 }
 
+#[derive(Serialize, Deserialize)]
 enum ProofOrPk {
     #[allow(unused)]
     ProofOne(ProofRemasking),
     ProofTwo(ProofShuffle),
+    #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
     JointPk(AggregatePublicKey),
 }
 

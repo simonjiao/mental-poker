@@ -46,7 +46,7 @@ impl ZkCardGameInitInfo {
     }
 
     pub fn add_shuffled_deck(&mut self, player: u32, proof: ProofShuffle, deck: Vec<MaskedCard>) {
-        self.shuffled_decks.push((deck, player, proof));
+        self.shuffled_decks.push((deck, Some((player, proof))));
     }
 }
 
@@ -134,7 +134,7 @@ impl ZkCardGame {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        self.basic = Some(ZkCardGameInitInfo::new(jiont_pk, initial_cards, deck));
+        self.basic = Some(ZkCardGameInitInfo::new(joint_pk, initial_cards, deck));
 
         Ok(())
     }
@@ -185,6 +185,7 @@ impl ZkCardGame {
         }
         let expect_shuffled_decks = players_num + 1;
         self.basic
+            .as_ref()
             .map(|b| b.shuffled_decks.len() == expect_shuffled_decks)
             .unwrap_or_default()
     }
