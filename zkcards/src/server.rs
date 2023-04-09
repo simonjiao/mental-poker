@@ -16,11 +16,13 @@ pub struct ZkCardGame {
     parameters: CardParameters,
     players: Vec<(u32, Surrogate)>,
     basic: Option<ZkCardGameInitInfo>,
+    #[allow(dead_code)]
     instance: Option<ZkCardGameInstance>,
 }
 
 struct ZkCardGameInitInfo {
     shared_key: AggregatePublicKey,
+    #[allow(dead_code)]
     initial_cards: HashMap<Card, Vec<u8>>,
     initial_deck: Vec<MaskedCard /*, MaskedProof*/>,
     next_shuffle_player: Option<u32>,
@@ -43,10 +45,6 @@ impl ZkCardGameInitInfo {
             next_shuffle_player: None,
             shuffled_decks: vec![],
         }
-    }
-
-    pub fn add_shuffled_deck(&mut self, player: u32, proof: ProofShuffle, deck: Vec<MaskedCard>) {
-        self.shuffled_decks.push((deck, Some((player, proof))));
     }
 }
 
@@ -168,7 +166,7 @@ impl ZkCardGame {
         }
     }
 
-    pub fn next_shuffle_player(&self) -> anyhow::Result<u32, GameErrors> {
+    pub fn next_shuffle_player(&mut self) -> anyhow::Result<u32, GameErrors> {
         if self.is_all_shuffled() {
             return Err(GameErrors::AllShuffled);
         } else if !self.is_ready() || !self.ready_to_shuffle() {
@@ -176,6 +174,14 @@ impl ZkCardGame {
         } else {
             todo!()
         }
+    }
+
+    pub fn current_shuffle_player(&self) -> anyhow::Result<u32, GameErrors> {
+        todo!()
+    }
+
+    pub fn next_card(&self) -> anyhow::Result<u32, GameErrors> {
+        todo!()
     }
 
     pub fn is_all_shuffled(&self) -> bool {
