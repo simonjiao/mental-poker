@@ -88,13 +88,15 @@ async fn main() -> anyhow::Result<()> {
                 C2SOp::ShuffledCards(original, deck, proof) => {
                     let current_shuffle_player =
                         instance.as_ref().unwrap().current_shuffle_player().unwrap();
+                    let raw_proof = serde_json::to_vec(&proof).unwrap();
                     // TODO: verify proof shuffle
                     instance
                         .as_mut()
                         .unwrap()
                         .register_shuffled_deck(
                             deck.clone(),
-                            Some(proof.clone()),
+                            // FixMe: remove this deserialization
+                            Some(serde_json::from_slice(raw_proof.as_slice()).unwrap()),
                             current_shuffle_player,
                         )
                         .unwrap();
@@ -129,8 +131,8 @@ async fn main() -> anyhow::Result<()> {
                 }
 
                 C2SOp::RequestCards(index, _start, _num) => {
-                    let player = player_txs.get(index);
-                    if instance.as_ref().unwrap().is_all_shuffled() && player.is_some() {
+                    let player = player_txs.get(index as usize).unwrap();
+                    if instance.as_ref().unwrap().is_all_shuffled() {
                         // next_card() must update the index
                         let card = if let Ok(next_card) = instance.as_mut().unwrap().next_card() {
                             S2COp::ReceiveCard(vec![next_card])
@@ -139,7 +141,7 @@ async fn main() -> anyhow::Result<()> {
                             S2COp::ReceiveCard(vec![])
                         };
                         let msg = serde_json::to_vec(&card).unwrap();
-                        player.send(msg).unwrap();
+                        player.send(msg).await.unwrap();
                     }
                 }
             }
@@ -228,12 +230,9 @@ async fn main() -> anyhow::Result<()> {
                             final_deck = deck;
                             // Everyone have already shuffle cards, and received shuffledCards
                             // Player can request cards
-                            let msg = serde_json::to_vec(&C2SOp::RequestCards(
-                                i as u32,
-                                None,
-                                u32::one(),
-                            ))
-                            .unwrap();
+                            let msg =
+                                serde_json::to_vec(&C2SOp::RequestCards(i as u32, None, 1_u32))
+                                    .unwrap();
                             srv_tx.send(msg).await.unwrap();
                         }
                     }

@@ -47,6 +47,11 @@ pub struct CardParameters(
     #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
     discrete_log_cards::Parameters<Curve>,
 );
+impl CardParameters {
+    pub fn card_nums(&self) -> (usize, usize) {
+        self.0.card_nums()
+    }
+}
 impl From<discrete_log_cards::Parameters<Curve>> for CardParameters {
     fn from(value: discrete_log_cards::Parameters<Curve>) -> Self {
         Self(value)
