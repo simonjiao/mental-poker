@@ -24,6 +24,9 @@ pub enum GameErrors {
 
     #[error("Crypto Error")]
     CryptoError(CryptoError),
+
+    #[error("No enough revealed tokens")]
+    NotEnoughRevealedTokens(u32),
 }
 
 impl From<CardProtocolError> for GameErrors {

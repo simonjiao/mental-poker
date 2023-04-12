@@ -1,10 +1,14 @@
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use tokio::task::yield_now;
 use zkcards::{
     ark_de, ark_se,
+    error::GameErrors,
     player::{Player, Surrogate},
     server::{ZkCardGame, ZkGameConfig},
-    AggregatePublicKey, CardParameters, MaskedCard, ProofRemasking, ProofShuffle, RevealToken,
+    AggregatePublicKey, Card, CardParameters, MaskedCard, ProofRemasking, ProofReveal,
+    ProofShuffle, RevealToken, RevealedToken,
 };
 
 const PLAYERS_NUM: u32 = 4;
@@ -60,6 +64,15 @@ async fn main() -> anyhow::Result<()> {
                             .expect("failed to setup a new game");
 
                         let deck = instance.as_ref().unwrap().initial_deck().unwrap();
+                        let initial_cards = instance
+                            .as_ref()
+                            .unwrap()
+                            .card_mappings()
+                            .unwrap()
+                            .into_iter()
+                            .map(|c| InitialOrMaskedCard::InitialCard(c.0, c.1))
+                            .collect::<Vec<_>>();
+
                         let first_shuffle_player = {
                             let mut rng = thread_rng();
                             let num: u32 = rng.gen();
@@ -68,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
                         for player in &player_txs {
                             let msg = serde_json::to_vec(&S2COp::NextShuffle(
                                 Some(first_shuffle_player),
-                                None,
+                                initial_cards.clone(),
                                 deck.clone(),
                                 ProofOrPk::JointPk(instance.as_ref().unwrap().joint_pk().unwrap()),
                             ))
@@ -88,6 +101,7 @@ async fn main() -> anyhow::Result<()> {
                 C2SOp::ShuffledCards(original, deck, proof) => {
                     let current_shuffle_player =
                         instance.as_ref().unwrap().current_shuffle_player().unwrap();
+                    // FixMe: avoid clone operation
                     let raw_proof = serde_json::to_vec(&proof).unwrap();
                     // TODO: verify proof shuffle
                     instance
@@ -101,10 +115,14 @@ async fn main() -> anyhow::Result<()> {
                         )
                         .unwrap();
 
+                    let original = original
+                        .into_iter()
+                        .map(|o| InitialOrMaskedCard::MaskedCard(o))
+                        .collect::<Vec<_>>();
                     let next_shuffle_player = instance.as_mut().unwrap().next_shuffle_player().ok();
                     let msg = S2COp::NextShuffle(
                         next_shuffle_player,
-                        Some(original),
+                        original,
                         deck,
                         ProofOrPk::ProofTwo(proof),
                     );
@@ -118,16 +136,44 @@ async fn main() -> anyhow::Result<()> {
                     todo!()
                 }
 
-                C2SOp::PeekCard(_) => {
-                    todo!()
+                C2SOp::PeekCard(player_idx, card_idx) => {
+                    let revealed_tokens = loop {
+                        match instance
+                            .as_ref()
+                            .unwrap()
+                            .revealed_tokens(player_idx, card_idx)
+                        {
+                            Err(GameErrors::NotEnoughRevealedTokens(c)) => {
+                                println!("revealed player count {c}");
+                                yield_now().await;
+                            }
+                            Err(_) => {
+                                panic!("nothing we can do");
+                            }
+                            Ok(tokens) => break tokens,
+                        }
+                    };
+
+                    let msg = serde_json::to_vec(&S2COp::RevealedCard(card_idx, revealed_tokens))
+                        .unwrap();
+                    let player = player_txs.get(player_idx as usize).unwrap();
+                    player.send(msg).await.unwrap();
                 }
 
-                C2SOp::RevealedCard(_) => {
-                    todo!()
+                C2SOp::RevealingCard(index, token, proof, player_idx) => {
+                    instance
+                        .as_mut()
+                        .unwrap()
+                        .register_revealed_token(index, token, proof, player_idx)
+                        .unwrap();
                 }
 
-                C2SOp::OpenCard(_) => {
-                    todo!()
+                C2SOp::OpenCard(index, token, proof, player_idx) => {
+                    instance
+                        .as_mut()
+                        .unwrap()
+                        .register_revealed_token(index, token, proof, player_idx)
+                        .unwrap();
                 }
 
                 C2SOp::RequestCards(index, _start, _num) => {
@@ -135,10 +181,10 @@ async fn main() -> anyhow::Result<()> {
                     if instance.as_ref().unwrap().is_all_shuffled() {
                         // next_card() must update the index
                         let card = if let Ok(next_card) = instance.as_mut().unwrap().next_card() {
-                            S2COp::ReceiveCard(vec![next_card])
+                            S2COp::ReceiveCard(Some((index, next_card)))
                         } else {
                             // no more cards
-                            S2COp::ReceiveCard(vec![])
+                            S2COp::ReceiveCard(None)
                         };
                         let msg = serde_json::to_vec(&card).unwrap();
                         player.send(msg).await.unwrap();
@@ -165,6 +211,7 @@ async fn main() -> anyhow::Result<()> {
             let mut param = None;
             let mut joint_pk = None;
             let mut final_deck = vec![];
+            let mut card_mappings = HashMap::new();
             while let Some(msg) = rx.recv().await {
                 let msg = serde_json::from_slice::<S2COp>(msg.as_slice()).unwrap();
                 match msg {
@@ -194,17 +241,35 @@ async fn main() -> anyhow::Result<()> {
                         }
 
                         if let Some(proof) = proof_shuffle {
+                            let original = original
+                                .into_iter()
+                                .map(|o| match o {
+                                    InitialOrMaskedCard::MaskedCard(card) => card,
+                                    _ => panic!(),
+                                })
+                                .collect::<Vec<_>>();
+
                             player
                                 .as_ref()
                                 .unwrap()
                                 .verify_shuffle(
                                     param.as_ref().unwrap(),
                                     joint_pk.as_ref().unwrap(),
-                                    original.as_ref().unwrap(),
+                                    original.as_ref(),
                                     &deck,
                                     &proof,
                                 )
                                 .unwrap();
+                        } else {
+                            card_mappings = original
+                                .into_iter()
+                                .map(|o| match o {
+                                    InitialOrMaskedCard::InitialCard(card, classic_card) => {
+                                        (card, classic_card)
+                                    }
+                                    _ => panic!(),
+                                })
+                                .collect::<HashMap<_, _>>();
                         }
 
                         // If I am the chosen one, do the shuffle.
@@ -237,14 +302,75 @@ async fn main() -> anyhow::Result<()> {
                         }
                     }
 
-                    S2COp::RevealingCard(_) => {
-                        todo!()
+                    S2COp::RevealedCard(idx, mut tokens) => {
+                        let (card, token, proof, pk) = async {
+                            let mut rng = thread_rng();
+                            let card = final_deck.get(idx as usize).unwrap();
+                            // make sure this card is belonged to current player
+                            let (token, proof, pk) = player
+                                .as_ref()
+                                .unwrap()
+                                .compute_reveal_token(&mut rng, param.as_ref().unwrap(), card)
+                                .unwrap();
+                            (card, token, proof, pk)
+                        }
+                        .await;
+
+                        tokens.push(RevealedToken {
+                            token,
+                            proof,
+                            player: pk,
+                        });
+                        player
+                            .as_mut()
+                            .unwrap()
+                            .peek_at_card(
+                                param.as_ref().unwrap(),
+                                &mut tokens,
+                                &card_mappings,
+                                &card,
+                            )
+                            .unwrap();
+
+                        // submit private revealed token
+                        let msg = serde_json::to_vec(&C2SOp::OpenCard(idx, token, proof, i as u32))
+                            .unwrap();
+                        srv_tx.send(msg).await.unwrap();
                     }
 
-                    S2COp::ReceiveCard(cards) => {
-                        todo!()
+                    S2COp::ReceiveCard(card) => {
+                        if let Some((player_idx, index)) = card {
+                            let card = final_deck.get(index as usize).unwrap();
+
+                            // not mine card
+                            if player_idx != i as u32 {
+                                let (token, proof) = async {
+                                    let mut rng = thread_rng();
+                                    let (token, proof, _pk) = player
+                                        .as_ref()
+                                        .unwrap()
+                                        .compute_reveal_token(
+                                            &mut rng,
+                                            param.as_ref().unwrap(),
+                                            card,
+                                        )
+                                        .unwrap();
+                                    (token, proof)
+                                }
+                                .await;
+                                let msg = serde_json::to_vec(&C2SOp::RevealingCard(
+                                    index, token, proof, i as u32,
+                                ))
+                                .unwrap();
+                                srv_tx.send(msg).await.unwrap();
+                            } else {
+                                player.as_mut().unwrap().receive_card(*card);
+                            }
+                        } else {
+                            // no more cards
+                        }
                     }
-                    S2COp::OpenedCard(_) => {
+                    S2COp::OpenedCard(..) => {
                         todo!()
                     }
                 }
@@ -265,9 +391,9 @@ enum C2SOp {
     CheckOut(u32, Surrogate),
     ShuffledCards(Vec<MaskedCard>, Vec<MaskedCard>, ProofShuffle),
     RequestCards(u32, Option<u32>, u32),
-    PeekCard(Vec<u32>),
-    RevealedCard(RevealToken),
-    OpenCard(RevealToken),
+    PeekCard(u32, u32),
+    RevealingCard(u32, RevealToken, ProofReveal, u32),
+    OpenCard(u32, RevealToken, ProofReveal, u32),
 }
 
 #[derive(Serialize, Deserialize)]
@@ -279,16 +405,22 @@ enum ProofOrPk {
     JointPk(AggregatePublicKey),
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+enum InitialOrMaskedCard {
+    InitialCard(Card, Vec<u8>),
+    MaskedCard(MaskedCard),
+}
+
 #[derive(Serialize, Deserialize)]
 enum S2COp {
     GameParam(Vec<u8>),
     NextShuffle(
         Option<u32>,
-        Option<Vec<MaskedCard>>,
+        Vec<InitialOrMaskedCard>,
         Vec<MaskedCard>,
         ProofOrPk,
     ),
-    ReceiveCard(Vec<u32>),
-    RevealingCard(RevealToken),
+    ReceiveCard(Option<(u32, u32)>),
+    RevealedCard(u32, Vec<RevealedToken>),
     OpenedCard(RevealToken),
 }

@@ -1,6 +1,7 @@
 use crate::{
     error::GameErrors, player::Surrogate, user_card::encode_cards, AggregatePublicKey, Card,
-    CardParameters, CardProtocol, MaskedCard, ProofShuffle, Scalar,
+    CardParameters, CardProtocol, MaskedCard, ProofReveal, ProofShuffle, RevealToken,
+    RevealedToken, Scalar,
 };
 use ark_std::One;
 use barnett::BarnettSmartProtocol;
@@ -9,7 +10,17 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-type ZkCardGameInstance = u8;
+#[derive(Serialize, Deserialize)]
+struct RevealedInfo {
+    token: RevealToken,
+    proof: ProofReveal,
+    player: u32,
+}
+
+struct ZkCardGameInstance {
+    #[allow(dead_code)]
+    revealed_tokens: Vec<RevealedInfo>,
+}
 
 pub struct ZkCardGame {
     config: ZkGameConfig,
@@ -86,13 +97,16 @@ impl ZkCardGame {
         match config.m.checked_mul(config.n) {
             Some(res) if res <= 52 && config.players_num > 0 => {
                 let rng = &mut thread_rng();
+                let num_of_cards = config.m * config.n;
                 let parameters = CardProtocol::setup(rng, config.m, config.n)?;
                 Ok(Self {
                     config,
                     parameters: parameters.into(),
                     players: vec![],
                     basic: None,
-                    instance: None,
+                    instance: Some(ZkCardGameInstance {
+                        revealed_tokens: Vec::with_capacity(num_of_cards as usize),
+                    }),
                 })
             }
             _ => Err(GameErrors::InvalidParameters),
@@ -146,6 +160,10 @@ impl ZkCardGame {
         }
     }
 
+    pub fn card_mappings(&self) -> anyhow::Result<HashMap<Card, Vec<u8>>, GameErrors> {
+        todo!()
+    }
+
     pub fn register_players(&mut self, mut players: Vec<(u32, Surrogate)>) {
         self.players.append(&mut players);
     }
@@ -175,6 +193,24 @@ impl ZkCardGame {
         } else {
             todo!()
         }
+    }
+
+    pub fn register_revealed_token(
+        &mut self,
+        _index: u32,
+        _token: RevealToken,
+        _proof: ProofReveal,
+        _player: u32,
+    ) -> anyhow::Result<(), GameErrors> {
+        todo!()
+    }
+
+    pub fn revealed_tokens(
+        &self,
+        _player_index: u32,
+        _card_index: u32,
+    ) -> anyhow::Result<Vec<RevealedToken>, GameErrors> {
+        todo!()
     }
 
     pub fn current_shuffle_player(&self) -> anyhow::Result<u32, GameErrors> {

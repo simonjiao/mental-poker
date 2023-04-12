@@ -1,7 +1,7 @@
 use crate::{
     ark_de, ark_se, error::GameErrors, user_card::ClassicPlayingCard, AggregatePublicKey, Card,
     CardParameters, CardProtocol, MaskedCard, PlayerPublicKey, PlayerSecretKey, ProofKeyOwnership,
-    ProofReveal, ProofShuffle, RevealToken, Scalar,
+    ProofReveal, ProofShuffle, RevealToken, RevealedToken, Scalar,
 };
 use barnett::BarnettSmartProtocol;
 use proof_essentials::utils::{permutation::Permutation, rand::sample_vector};
@@ -132,8 +132,8 @@ impl Player {
     pub fn peek_at_card(
         &mut self,
         parameters: &CardParameters,
-        reveal_tokens: &mut Vec<(RevealToken, ProofReveal, PlayerPublicKey)>,
-        card_mappings: &HashMap<Card, ClassicPlayingCard>,
+        reveal_tokens: &mut Vec<RevealedToken>,
+        card_mappings: &HashMap<Card, Vec<u8>>,
         card: &MaskedCard,
     ) -> Result<(), anyhow::Error> {
         let i = self.cards.iter().position(|&x| x == *card);
@@ -143,11 +143,15 @@ impl Player {
         //TODO add function to create that without the proof
         let rng = &mut thread_rng();
         let own_reveal_token = self.compute_reveal_token(rng, parameters, card)?;
-        reveal_tokens.push(own_reveal_token);
+        reveal_tokens.push(RevealedToken {
+            token: own_reveal_token.0,
+            proof: own_reveal_token.1,
+            player: own_reveal_token.2,
+        });
 
         let raw_reveal_tokens = reveal_tokens
             .iter()
-            .map(|t| (t.0.into(), t.1.into(), t.2))
+            .map(|t| (t.token.into(), t.proof.into(), t.player))
             .collect::<Vec<_>>();
 
         let unmasked_card =
@@ -155,7 +159,7 @@ impl Player {
         let opened_card = card_mappings.get(&unmasked_card.into());
         let opened_card = opened_card.ok_or(GameErrors::InvalidCard)?;
 
-        self.opened_cards[i] = Some(*opened_card);
+        self.opened_cards[i] = Some(serde_json::from_slice(opened_card).unwrap());
         Ok(())
     }
 

@@ -194,3 +194,11 @@ impl From<ProofRemasking> for chaum_pedersen_dl_equality::proof::Proof<Curve> {
         value.0
     }
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct RevealedToken {
+    pub token: RevealToken,
+    pub proof: ProofReveal,
+    #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
+    pub player: PlayerPublicKey,
+}
