@@ -1,7 +1,7 @@
-use barnett::discrete_log_cards::{ark_de, ark_se};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use zkcards::{
+    ark_de, ark_se,
     player::{Player, Surrogate},
     server::{ZkCardGame, ZkGameConfig},
     AggregatePublicKey, CardParameters, MaskedCard, ProofRemasking, ProofShuffle, RevealToken,

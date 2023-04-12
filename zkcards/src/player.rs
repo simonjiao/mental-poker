@@ -1,12 +1,9 @@
 use crate::{
-    error::GameErrors, user_card::ClassicPlayingCard, AggregatePublicKey, Card, CardParameters,
-    CardProtocol, MaskedCard, PlayerPublicKey, PlayerSecretKey, ProofKeyOwnership, ProofReveal,
-    ProofShuffle, RevealToken, Scalar,
+    ark_de, ark_se, error::GameErrors, user_card::ClassicPlayingCard, AggregatePublicKey, Card,
+    CardParameters, CardProtocol, MaskedCard, PlayerPublicKey, PlayerSecretKey, ProofKeyOwnership,
+    ProofReveal, ProofShuffle, RevealToken, Scalar,
 };
-use barnett::{
-    discrete_log_cards::{ark_de, ark_se},
-    BarnettSmartProtocol,
-};
+use barnett::BarnettSmartProtocol;
 use proof_essentials::utils::{permutation::Permutation, rand::sample_vector};
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
@@ -32,14 +29,15 @@ pub struct Surrogate {
 
 impl Surrogate {
     pub fn verify(&self, pp: &CardParameters) -> bool {
-        CardProtocol::verify_key_ownership(pp, &self.pk, &self.name, &self.proof_key.into()).is_ok()
+        CardProtocol::verify_key_ownership(pp.into(), &self.pk, &self.name, &self.proof_key.into())
+            .is_ok()
     }
 }
 
 impl Player {
     pub fn new<R: Rng>(rng: &mut R, pp: &CardParameters, name: &Vec<u8>) -> anyhow::Result<Self> {
-        let (pk, sk) = CardProtocol::player_keygen(rng, pp)?;
-        let proof_key = CardProtocol::prove_key_ownership(rng, pp, &pk, &sk, name)?;
+        let (pk, sk) = CardProtocol::player_keygen(rng, pp.into())?;
+        let proof_key = CardProtocol::prove_key_ownership(rng, pp.into(), &pk, &sk, name)?;
         Ok(Self {
             name: name.clone(),
             sk,
@@ -53,7 +51,8 @@ impl Player {
     pub fn new_surrogate(&self, pp: &CardParameters) -> Surrogate {
         let rng = &mut thread_rng();
         let proof_key =
-            CardProtocol::prove_key_ownership(rng, pp, &self.pk, &self.sk, &self.name).unwrap();
+            CardProtocol::prove_key_ownership(rng, pp.into(), &self.pk, &self.sk, &self.name)
+                .unwrap();
 
         Surrogate {
             name: self.name.clone(),
@@ -84,7 +83,7 @@ impl Player {
         let deck = deck.iter().map(|c| c.clone().into()).collect::<Vec<_>>();
         let (shuffled_deck, shuffle_proof) = CardProtocol::shuffle_and_remask(
             &mut rng,
-            parameters,
+            parameters.into(),
             joint_pk,
             &deck,
             &masking_factors,
@@ -116,7 +115,7 @@ impl Player {
             .map(|e| e.clone().into())
             .collect::<Vec<_>>();
         CardProtocol::verify_shuffle(
-            &parameters,
+            parameters.into(),
             joint_pk,
             &original_deck,
             &shuffled_deck,
@@ -151,7 +150,8 @@ impl Player {
             .map(|t| (t.0.into(), t.1.into(), t.2))
             .collect::<Vec<_>>();
 
-        let unmasked_card = CardProtocol::unmask(&parameters, &raw_reveal_tokens, card.into())?;
+        let unmasked_card =
+            CardProtocol::unmask(parameters.into(), &raw_reveal_tokens, card.into())?;
         let opened_card = card_mappings.get(&unmasked_card.into());
         let opened_card = opened_card.ok_or(GameErrors::InvalidCard)?;
 
@@ -166,7 +166,7 @@ impl Player {
         card: &MaskedCard,
     ) -> anyhow::Result<(RevealToken, ProofReveal, PlayerPublicKey)> {
         let (reveal_token, reveal_proof) =
-            CardProtocol::compute_reveal_token(rng, &pp, &self.sk, &self.pk, card.into())?;
+            CardProtocol::compute_reveal_token(rng, pp.into(), &self.sk, &self.pk, card.into())?;
 
         Ok((reveal_token.into(), reveal_proof.into(), self.pk))
     }

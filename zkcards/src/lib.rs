@@ -3,7 +3,8 @@ pub mod player;
 pub mod server;
 pub mod user_card;
 
-use barnett::discrete_log_cards::{self, ark_de, ark_se};
+use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
+use barnett::discrete_log_cards;
 use proof_essentials::{
     homomorphic_encryption::el_gamal::ElGamal,
     vector_commitment::pedersen::PedersenCommitment,
@@ -14,6 +15,24 @@ use proof_essentials::{
 };
 use serde::{Deserialize, Serialize};
 
+pub fn ark_se<S, A: CanonicalSerialize>(a: &A, s: S) -> Result<S::Ok, S::Error>
+where
+    S: serde::Serializer,
+{
+    let mut bytes = vec![];
+    a.serialize(&mut bytes).map_err(serde::ser::Error::custom)?;
+    s.serialize_bytes(&bytes)
+}
+
+pub fn ark_de<'de, D, A: CanonicalDeserialize>(data: D) -> Result<A, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let s: Vec<u8> = serde::de::Deserialize::deserialize(data)?;
+    let a = A::deserialize(s.as_slice());
+    a.map_err(serde::de::Error::custom)
+}
+
 // Choose elliptic curve setting
 // And instantiate concrete type for our card protocol
 type Curve = starknet_curve::Projective;
@@ -23,7 +42,27 @@ type CardProtocol<'a> = discrete_log_cards::DLCards<'a, Curve>;
 type Enc = ElGamal<Curve>;
 type Comm = PedersenCommitment<Curve>;
 
-pub type CardParameters = discrete_log_cards::Parameters<Curve>;
+#[derive(Deserialize, Serialize)]
+pub struct CardParameters(
+    #[serde(serialize_with = "ark_se", deserialize_with = "ark_de")]
+    discrete_log_cards::Parameters<Curve>,
+);
+impl From<discrete_log_cards::Parameters<Curve>> for CardParameters {
+    fn from(value: discrete_log_cards::Parameters<Curve>) -> Self {
+        Self(value)
+    }
+}
+impl From<CardParameters> for discrete_log_cards::Parameters<Curve> {
+    fn from(value: CardParameters) -> Self {
+        value.0
+    }
+}
+impl<'a> From<&'a CardParameters> for &'a discrete_log_cards::Parameters<Curve> {
+    fn from(value: &'a CardParameters) -> Self {
+        &value.0
+    }
+}
+
 pub type PlayerPublicKey = discrete_log_cards::PublicKey<Curve>;
 pub type PlayerSecretKey = discrete_log_cards::PlayerSecretKey<Curve>;
 pub type AggregatePublicKey = discrete_log_cards::PublicKey<Curve>;

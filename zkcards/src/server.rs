@@ -89,7 +89,7 @@ impl ZkCardGame {
                 let parameters = CardProtocol::setup(rng, config.m, config.n)?;
                 Ok(Self {
                     config,
-                    parameters,
+                    parameters: parameters.into(),
                     players: vec![],
                     basic: None,
                     instance: None,
@@ -115,7 +115,8 @@ impl ZkCardGame {
             .collect::<Vec<_>>();
 
         // Each player should run this computation. Alternatively, it can be ran by a smart contract
-        let joint_pk = CardProtocol::compute_aggregate_key(&self.parameters, &key_proof_info)?;
+        let joint_pk =
+            CardProtocol::compute_aggregate_key((&self.parameters).into(), &key_proof_info)?;
 
         let deck = initial_cards
             .keys()
@@ -123,7 +124,7 @@ impl ZkCardGame {
                 let inner_card = card.clone().into();
                 CardProtocol::mask(
                     rng,
-                    &self.parameters,
+                    (&self.parameters).into(),
                     &joint_pk,
                     &inner_card,
                     &Scalar::one(),
