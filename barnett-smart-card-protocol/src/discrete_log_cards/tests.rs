@@ -1,14 +1,13 @@
 #[cfg(test)]
 mod test {
-    use crate::discrete_log_cards;
-    use crate::error::CardProtocolError;
-    use crate::BarnettSmartProtocol;
+    use crate::{discrete_log_cards, error::CardProtocolError, BarnettSmartProtocol};
 
     use ark_ff::UniformRand;
     use ark_std::{rand::Rng, Zero};
-    use proof_essentials::error::CryptoError;
-    use proof_essentials::utils::permutation::Permutation;
-    use proof_essentials::utils::rand::sample_vector;
+    use proof_essentials::{
+        error::CryptoError,
+        utils::{permutation::Permutation, rand::sample_vector},
+    };
     use rand::thread_rng;
     use std::iter::Iterator;
 
@@ -36,7 +35,7 @@ mod test {
         let mut expected_shared_key = PublicKey::zero();
 
         for i in 0..num_of_players {
-            let (pk, sk) = CardProtocol::player_keygen(rng, &parameters).unwrap();
+            let (pk, sk) = CardProtocol::player_keygen(rng, parameters).unwrap();
             let player_info = Scalar::rand(rng);
             players.push((pk, sk, player_info));
             expected_shared_key = expected_shared_key + players[i].0
@@ -100,7 +99,7 @@ mod test {
         let key_proof_info = players
             .iter()
             .zip(proofs.iter())
-            .map(|(player, &proof)| (player.0, proof.clone(), player.2))
+            .map(|(player, &proof)| (player.0, proof, player.2))
             .collect::<Vec<(PublicKey, _, _)>>();
 
         let test_aggregate =

@@ -3,12 +3,14 @@ use crate::error::CardProtocolError;
 use ark_ff::{Field, ToBytes};
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use ark_std::rand::Rng;
-use proof_essentials::error::CryptoError;
-use proof_essentials::homomorphic_encryption::HomomorphicEncryptionScheme;
-use proof_essentials::utils::permutation::Permutation;
-use proof_essentials::vector_commitment::HomomorphicCommitmentScheme;
-use std::hash::Hash;
-use std::ops::{Add, Mul};
+use proof_essentials::{
+    error::CryptoError, homomorphic_encryption::HomomorphicEncryptionScheme,
+    utils::permutation::Permutation, vector_commitment::HomomorphicCommitmentScheme,
+};
+use std::{
+    hash::Hash,
+    ops::{Add, Mul},
+};
 
 pub mod discrete_log_cards;
 pub mod error;

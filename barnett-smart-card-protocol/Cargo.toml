@@ -17,8 +17,9 @@ blake2 = { version = "0.9", default-features = false }
 merlin = "3.0.0"
 proof-essentials = { git = "https://github.com/FindoraNetwork/proof-toolbox.git", branch = "findora" }
 rand = "0.8.4"
-starknet-curve = { git = "ssh://git@github.com/geometryresearch/proof-toolbox.git" }
+starknet-curve = { git = "https://github.com/FindoraNetwork/proof-toolbox.git", branch = "findora" }
 thiserror = "1.0.30"
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 ark-bls12-377 = "0.3.0"

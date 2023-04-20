@@ -1,6 +1,4 @@
-use crate::discrete_log_cards::MaskedCard;
-use crate::error::CardProtocolError;
-use crate::{Mask, Remask};
+use crate::{discrete_log_cards::MaskedCard, error::CardProtocolError, Mask, Remask};
 
 use ark_ec::ProjectiveCurve;
 use ark_ff::Zero;
@@ -23,13 +21,11 @@ impl<C: ProjectiveCurve> Remask<C::ScalarField, ElGamal<C>> for MaskedCard<C> {
 
 #[cfg(test)]
 mod test {
-    use crate::discrete_log_cards;
-    use crate::BarnettSmartProtocol;
+    use crate::{discrete_log_cards, BarnettSmartProtocol};
 
     use ark_ff::UniformRand;
     use ark_std::{rand::Rng, Zero};
-    use proof_essentials::error::CryptoError;
-    use proof_essentials::zkp::proofs::chaum_pedersen_dl_equality;
+    use proof_essentials::{error::CryptoError, zkp::proofs::chaum_pedersen_dl_equality};
     use rand::thread_rng;
 
     // Choose elliptic curve setting
@@ -55,7 +51,7 @@ mod test {
         let mut expected_shared_key = PublicKey::zero();
 
         for i in 0..parameters.n {
-            players.push(CardProtocol::player_keygen(rng, &parameters).unwrap());
+            players.push(CardProtocol::player_keygen(rng, parameters).unwrap());
             expected_shared_key = expected_shared_key + players[i].0
         }
 
