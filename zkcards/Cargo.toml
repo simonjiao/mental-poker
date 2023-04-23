@@ -7,8 +7,8 @@ edition = "2021"
 publish = false
 
 [dependencies]
-proof-essentials = { git = "https://github.com/FindoraNetwork/proof-toolbox.git", branch = "findora" }
-starknet-curve = { git = "https://github.com/FindoraNetwork/proof-toolbox.git", branch = "findora" }
+proof-essentials = { git = "https://github.com/FindoraNetwork/proof-toolbox.git", branch = "develop" }
+starknet-curve = { git = "https://github.com/FindoraNetwork/proof-toolbox.git", branch = "develop" }
 barnett = { path = "../barnett-smart-card-protocol", package = "barnett-smart-card-protocol" }
 #jsonrpsee = { version = "0.16.2", features = ["server", "http-client"] }
 tokio = { version = "1", features = ["full"] }

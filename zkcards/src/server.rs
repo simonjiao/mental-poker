@@ -5,10 +5,12 @@ use crate::{
 };
 use ark_std::One;
 use barnett::BarnettSmartProtocol;
-use rand::thread_rng;
-use std::collections::HashMap;
+use rand::{thread_rng, Rng};
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
+
+const PLAYERS_NUM: u32 = 4;
 
 #[derive(Serialize, Deserialize)]
 struct RevealedInfo {
@@ -29,11 +31,11 @@ pub struct ZkCardGame {
     basic: Option<ZkCardGameInitInfo>,
     #[allow(dead_code)]
     instance: Option<ZkCardGameInstance>,
+    next_card: usize,
 }
 
 struct ZkCardGameInitInfo {
     shared_key: AggregatePublicKey,
-    #[allow(dead_code)]
     initial_cards: HashMap<Card, Vec<u8>>,
     initial_deck: Vec<MaskedCard /*, MaskedProof*/>,
     next_shuffle_player: Option<u32>,
@@ -107,6 +109,7 @@ impl ZkCardGame {
                     instance: Some(ZkCardGameInstance {
                         revealed_tokens: Vec::with_capacity(num_of_cards as usize),
                     }),
+                    next_card: 0,
                 })
             }
             _ => Err(GameErrors::InvalidParameters),
@@ -161,7 +164,11 @@ impl ZkCardGame {
     }
 
     pub fn card_mappings(&self) -> anyhow::Result<HashMap<Card, Vec<u8>>, GameErrors> {
-        todo!()
+        if let Some(basic) = self.basic.as_ref() {
+            Ok(basic.initial_cards.clone())
+        } else {
+            Err(GameErrors::NotReady)
+        }
     }
 
     pub fn register_players(&mut self, mut players: Vec<(u32, Surrogate)>) {
@@ -172,13 +179,13 @@ impl ZkCardGame {
         &mut self,
         deck: Vec<MaskedCard>,
         proof: Option<ProofShuffle>,
-        next_shuffle_player: u32,
+        next_shuffle_player: Option<u32>,
     ) -> anyhow::Result<(), GameErrors> {
         // The proof could be None for the initial deck
         if let Some(basic) = self.basic.as_mut() {
             let with_player = proof.map(|p| (basic.next_shuffle_player.unwrap(), p));
             basic.shuffled_decks.push((deck, with_player));
-            basic.next_shuffle_player = Some(next_shuffle_player);
+            basic.next_shuffle_player = next_shuffle_player;
             Ok(())
         } else {
             Err(GameErrors::NotReady)
@@ -191,7 +198,37 @@ impl ZkCardGame {
         } else if !self.is_ready() || !self.ready_to_shuffle() {
             return Err(GameErrors::NotReady);
         } else {
-            todo!()
+            let mut shuffled = self
+                .basic
+                .as_ref()
+                .unwrap()
+                .shuffled_decks
+                .iter()
+                .filter_map(|(_, p)| p.as_ref().map(|(i, _)| i))
+                .collect::<HashSet<_>>();
+
+            shuffled.insert(
+                self.basic
+                    .as_ref()
+                    .unwrap()
+                    .next_shuffle_player
+                    .as_ref()
+                    .unwrap(),
+            );
+
+            if shuffled.len() == PLAYERS_NUM as usize {
+                return Err(GameErrors::AllShuffled);
+            }
+
+            let mut rng = thread_rng();
+            let idx = loop {
+                let num: u32 = rng.gen();
+                let idx = num % PLAYERS_NUM;
+                if !shuffled.contains(&idx) {
+                    break idx;
+                }
+            };
+            Ok(idx)
         }
     }
 
@@ -214,11 +251,20 @@ impl ZkCardGame {
     }
 
     pub fn current_shuffle_player(&self) -> anyhow::Result<u32, GameErrors> {
-        todo!()
+        self.basic.as_ref().map_or_else(
+            || Err(GameErrors::NotReady),
+            |b| Ok(b.next_shuffle_player.unwrap()),
+        )
     }
 
-    pub fn next_card(&self) -> anyhow::Result<u32, GameErrors> {
-        todo!()
+    pub fn next_card(&mut self) -> anyhow::Result<u32, GameErrors> {
+        let next = self.next_card;
+        if next >= self.config.num_of_cards() {
+            Err(GameErrors::NoMoreCards)
+        } else {
+            self.next_card += 1;
+            Ok(next as u32)
+        }
     }
 
     pub fn is_all_shuffled(&self) -> bool {

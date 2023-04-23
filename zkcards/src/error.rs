@@ -25,6 +25,9 @@ pub enum GameErrors {
     #[error("Crypto Error")]
     CryptoError(CryptoError),
 
+    #[error("No more cards")]
+    NoMoreCards,
+
     #[error("No enough revealed tokens")]
     NotEnoughRevealedTokens(u32),
 }
