@@ -1,0 +1,29 @@
+[package]
+name = "zkcards"
+authors = ["Simon Jiao<simonjiaoh@gmail.com>"]
+description = "an example for mental-poker"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+proof-essentials = { git = "https://github.com/FindoraNetwork/proof-toolbox.git", branch = "develop" }
+starknet-curve = { git = "https://github.com/FindoraNetwork/proof-toolbox.git", branch = "develop" }
+barnett = { path = "../barnett-smart-card-protocol", package = "barnett-smart-card-protocol" }
+#jsonrpsee = { version = "0.16.2", features = ["server", "http-client"] }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3.16", features = ["env-filter"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+thiserror = "1"
+rand = "0.8"
+ark-std = { version = "0.3.0", features = ["std"] }
+ark-ff = "0.3.0"
+ark-serialize = "0.3.0"
+paste = "1"
+
+[[bin]]
+name = "multi-players"
+path = "round/round.rs"

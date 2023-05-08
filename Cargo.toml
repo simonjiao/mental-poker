@@ -2,7 +2,8 @@
 
 members = [
     "proof-essentials",
-    "barnett-smart-card-protocol"
+    "barnett-smart-card-protocol",
+    "zkcards"
 ]
 
 resolver = "2"
